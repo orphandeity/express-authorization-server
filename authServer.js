@@ -1,43 +1,96 @@
 require('dotenv').config()
 const express = require('express')
 const jwt = require('jsonwebtoken')
+const redis = require('redis')
+
 const { getUserByUsername } = require('./db/queries/users')
 const { passwordCompare, stripUser } = require('./lib/utils')
+const { authenticateToken } = require('./lib/middleware')
 
 const port = process.env.AUTH_PORT || 4000
 const app = express()
 
 app.use(express.json())
 
-let refreshTokens = []
-
-app.get('/list', (req, res) => {
-  res.json({ refreshTokens })
+// redis client
+const redisClient = redis.createClient({
+  host: process.env.REDIS_HOST,
+  port: process.env.REDIS_PORT
 })
 
-app.delete('/logout', (req, res) => {
-  // remove refresh token from memory
-  refreshTokens = refreshTokens.filter((token) => token !== req.body.token)
-  res.sendStatus(204) // no content
+redisClient.on('connect', () => {
+  console.log('Redis client connected')
 })
 
-app.post('/token', (req, res) => {
-  const refreshToken = req.body.token
-  // check if refresh token exists
-  if (refreshToken == null) return res.sendStatus(401) // unauthorized
-  // check if refresh token is valid
-  if (!refreshTokens.includes(refreshToken)) return res.sendStatus(403) // forbidden
-  // verify refresh token and generate new access token
-  jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, (err, user) => {
-    // if token is invalid, return forbidden status
-    if (err) return res.sendStatus(403) // forbidden
-    // if token is valid, generate new access token and send it to client
-    // user object must be stripped of properties added by jwt.sign()
-    const accessToken = generateAccessToken(stripUser(user))
-    res.json({ accessToken })
+redisClient.on('error', (err) => {
+  console.error('Redis error: ', err)
+})
+
+redisClient.on('end', () => {
+  console.log('Connection to Redis ended')
+  // Reconnect logic can be implemented here
+})
+
+/**
+ * DELETE /logout
+ *
+ * Delete refresh token from Redis and remove user info from request object
+ */
+app.delete('/logout', authenticateToken, async (req, res) => {
+  await redisClient.connect()
+  await redisClient.del(String(req.user.id), (err, response) => {
+    if (err) {
+      console.error('Error deleting refresh token from Redis: ', err)
+      return res.sendStatus(500)
+    } else {
+      console.log('Redis response: ', response)
+    }
   })
+  await redisClient.disconnect()
+  req.user = null
+  res.sendStatus(204)
 })
 
+/**
+ * POST /token
+ *
+ * Generate new access token using refresh token
+ */
+app.post('/token', authenticateToken, async (req, res) => {
+  // check request body for refresh token
+  const refreshToken = req.body.token
+  if (refreshToken == null) return res.sendStatus(401) // unauthorized
+
+  // check if refresh token is valid
+  await redisClient.connect()
+  const storedToken = await redisClient.get(String(req.user.id), (err) => {
+    if (err) {
+      console.error('Error getting refresh token from Redis: ', err)
+      return res.sendStatus(500)
+    }
+  })
+  await redisClient.disconnect()
+
+  if (storedToken === refreshToken) {
+    // verify refresh token and generate new access token
+    jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, (err, user) => {
+      // if token is invalid, return forbidden status
+      if (err) return res.sendStatus(403) // forbidden
+      // if token is valid, generate new access token and send it to client
+      // user object must be stripped of properties added by jwt.sign()
+      const accessToken = generateAccessToken(stripUser(user))
+      return res.json({ accessToken })
+    })
+  } else {
+    return res.sendStatus(403) // forbidden
+  }
+})
+
+/**
+ * POST /login
+ *
+ * Authenticate user and generate access token and refresh token
+ */
 app.post('/login', async (req, res) => {
   // authenticate user
   const { username, password } = req.body
@@ -56,15 +109,19 @@ app.post('/login', async (req, res) => {
   // generate refresh token with no expiration
   // refresh token management will be handled manually
   const refreshToken = jwt.sign(user, process.env.REFRESH_TOKEN_SECRET)
-  // store refresh token in memory
-  refreshTokens.push(refreshToken)
+
+  // store refresh token in redis
+  await redisClient.connect()
+  await redisClient.set(String(user.id), refreshToken)
+  await redisClient.disconnect()
+
   // send access token to client
   res.json({ accessToken, refreshToken })
 })
 
 function generateAccessToken(user) {
   // generate temporary access token with user object and secret key
-  return jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '25s' })
+  return jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' })
 }
 
 app.listen(port, () => {
