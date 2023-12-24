@@ -2,7 +2,7 @@ require('dotenv').config()
 const express = require('express')
 const jwt = require('jsonwebtoken')
 const { getUserByUsername } = require('./db/queries/users')
-const { passwordCompare } = require('./lib/utils')
+const { passwordCompare, stripUser } = require('./lib/utils')
 
 const port = process.env.AUTH_PORT || 4000
 const app = express()
@@ -10,6 +10,10 @@ const app = express()
 app.use(express.json())
 
 let refreshTokens = []
+
+app.get('/list', (req, res) => {
+  res.json({ refreshTokens })
+})
 
 app.delete('/logout', (req, res) => {
   // remove refresh token from memory
@@ -25,8 +29,11 @@ app.post('/token', (req, res) => {
   if (!refreshTokens.includes(refreshToken)) return res.sendStatus(403) // forbidden
   // verify refresh token and generate new access token
   jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, (err, user) => {
+    // if token is invalid, return forbidden status
     if (err) return res.sendStatus(403) // forbidden
-    const accessToken = generateAccessToken({ name: user.name })
+    // if token is valid, generate new access token and send it to client
+    // user object must be stripped of properties added by jwt.sign()
+    const accessToken = generateAccessToken(stripUser(user))
     res.json({ accessToken })
   })
 })
@@ -36,12 +43,14 @@ app.post('/login', async (req, res) => {
   const { username, password } = req.body
   if (!username || !password) return res.sendStatus(400) // bad request
   // check if user exists
-  const user = await getUserByUsername(username)
-  if (!user) return res.sendStatus(400) // bad request
+  let user = await getUserByUsername(username)
+  if (!user) return res.sendStatus(401) // unauthorized
   // check if password is correct
   const match = passwordCompare(password, user.password)
-  if (!match) return res.sendStatus(400) // bad request
+  if (!match) return res.sendStatus(401) // unauthorized
 
+  // strip user object of sensitive data
+  user = stripUser(user)
   // generate access token with automatic expiration
   const accessToken = generateAccessToken(user)
   // generate refresh token with no expiration
@@ -55,7 +64,7 @@ app.post('/login', async (req, res) => {
 
 function generateAccessToken(user) {
   // generate temporary access token with user object and secret key
-  return jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' })
+  return jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '25s' })
 }
 
 app.listen(port, () => {

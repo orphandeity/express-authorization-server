@@ -9,17 +9,29 @@ app.use(express.json())
 
 const posts = [
   {
-    username: 'Kyle',
+    user_id: 1,
     title: 'Post 1'
   },
   {
-    username: 'Jim',
+    user_id: 1,
     title: 'Post 2'
+  },
+  {
+    user_id: 3,
+    title: 'hic sit possimus'
+  },
+  {
+    user_id: 2,
+    title: 'sed ex sapiente'
+  },
+  {
+    user_id: 2,
+    title: 'aut architecto repellat'
   }
 ]
 
 app.get('/posts', authenticateToken, (req, res) => {
-  res.json(posts.filter((post) => post.username == req.user.name))
+  res.json(posts.filter((post) => post.user_id == req.user.id))
 })
 
 function authenticateToken(req, res, next) {
