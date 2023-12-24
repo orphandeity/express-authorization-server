@@ -3,9 +3,13 @@ const express = require('express')
 const jwt = require('jsonwebtoken')
 const redis = require('redis')
 
-const { getUserByUsername } = require('./db/queries/users')
-const { passwordCompare, stripUser } = require('./lib/utils')
 const { authenticateToken } = require('./lib/middleware')
+const { getUserByUsername } = require('./db/queries/users')
+const {
+  passwordCompare,
+  stripUser,
+  getRefreshTokenFromStore
+} = require('./lib/utils')
 
 const port = process.env.AUTH_PORT || 4000
 const app = express()
@@ -61,15 +65,7 @@ app.post('/token', authenticateToken, async (req, res) => {
   const refreshToken = req.body.token
   if (refreshToken == null) return res.sendStatus(401) // unauthorized
 
-  // check if refresh token is valid
-  await redisClient.connect()
-  const storedToken = await redisClient.get(String(req.user.id), (err) => {
-    if (err) {
-      console.error('Error getting refresh token from Redis: ', err)
-      return res.sendStatus(500)
-    }
-  })
-  await redisClient.disconnect()
+  const storedToken = await getRefreshTokenFromStore(req.user.id, redisClient)
 
   if (storedToken === refreshToken) {
     // verify refresh token and generate new access token
