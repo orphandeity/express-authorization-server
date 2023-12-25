@@ -53,7 +53,7 @@ app.delete('/logout', authenticateToken, async (req, res) => {
   })
   await redisClient.disconnect()
   req.user = null
-  res.sendStatus(204)
+  res.sendStatus(204) // no content
 })
 
 /**
@@ -69,7 +69,6 @@ app.post('/token', authenticateToken, async (req, res) => {
   // check if refresh token passed by user matches the stored value
   const storedToken = await getRefreshTokenFromStore(req.user.id, redisClient)
   if (storedToken === refreshToken) {
-    // refresh token is valid
     // verify refresh token and generate new access token
     jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, (err, user) => {
       if (err) return res.sendStatus(403) // forbidden
@@ -78,7 +77,6 @@ app.post('/token', authenticateToken, async (req, res) => {
       return res.json({ accessToken })
     })
   } else {
-    // refresh token is invalid
     return res.sendStatus(403) // forbidden
   }
 })
