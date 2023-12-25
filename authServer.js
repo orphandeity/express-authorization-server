@@ -65,19 +65,19 @@ app.post('/token', authenticateToken, async (req, res) => {
   const refreshToken = req.body.token
   if (refreshToken == null) return res.sendStatus(401) // unauthorized
 
+  // check if refresh token passed by user matches the stored value
   const storedToken = await getRefreshTokenFromStore(req.user.id, redisClient)
-
   if (storedToken === refreshToken) {
+    // refresh token is valid
     // verify refresh token and generate new access token
     jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, (err, user) => {
-      // if token is invalid, return forbidden status
       if (err) return res.sendStatus(403) // forbidden
-      // if token is valid, generate new access token and send it to client
       // user object must be stripped of properties added by jwt.sign()
       const accessToken = generateAccessToken(stripUser(user))
       return res.json({ accessToken })
     })
   } else {
+    // refresh token is invalid
     return res.sendStatus(403) // forbidden
   }
 })
