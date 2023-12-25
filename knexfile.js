@@ -10,6 +10,7 @@ module.exports = {
     connection: {
       filename: path.join(basePath, 'sqlite.db')
     },
+    useNullAsDefault: false,
     migrations: {
       directory: path.join(basePath, 'migrations')
     },

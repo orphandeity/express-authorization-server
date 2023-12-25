@@ -1,6 +1,6 @@
-# Project Name
+# Basic Authentication Server
 
-A brief description of your project.
+Express server with username and password authentication + JWT session management
 
 ## Table of Contents
 
@@ -11,13 +11,14 @@ A brief description of your project.
 
 ## Introduction
 
-This project is an Express authentication server that provides basic user and password authentication, as well as JWT session management and Redis support.
+All authentication routes are
 
 ## Features
 
 - Basic user and password authentication
 - JWT session management
 - Redis store for token management
+- SQLite database
 
 ## Installation
 

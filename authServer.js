@@ -3,9 +3,10 @@ const express = require('express')
 const jwt = require('jsonwebtoken')
 const redis = require('redis')
 
+const { getUserByUsername, createUser } = require('./db/queries/users')
 const { authenticateToken } = require('./lib/middleware')
-const { getUserByUsername } = require('./db/queries/users')
 const {
+  passwordHash,
   passwordCompare,
   stripUser,
   getRefreshTokenFromStore
@@ -104,7 +105,7 @@ app.post('/login', async (req, res) => {
   const accessToken = generateAccessToken(user)
   // generate refresh token with no expiration
   // refresh token management will be handled manually
-  const refreshToken = jwt.sign(user, process.env.REFRESH_TOKEN_SECRET)
+  const refreshToken = generateRefreshToken(user)
 
   // store refresh token in redis
   await redisClient.connect()
@@ -115,9 +116,47 @@ app.post('/login', async (req, res) => {
   res.json({ accessToken, refreshToken })
 })
 
+/**
+ * POST /register
+ *
+ * Register new user and generate access token and refresh token
+ */
+app.post('/register', async (req, res) => {
+  const { username, password } = req.body
+  if (!username || !password) return res.sendStatus(400) // bad request
+  // check if user exists
+  const user = await getUserByUsername(username)
+  if (user) return res.sendStatus(409) // conflict
+  // hash password
+  const hashedPassword = passwordHash(password)
+  // create user
+  let newUser = await createUser({ username, password: hashedPassword })
+
+  // strip user object of sensitive data
+  newUser = stripUser(newUser)
+  // generate access token with automatic expiration
+  const accessToken = generateAccessToken(newUser)
+  // generate refresh token with no expiration
+  // refresh token management will be handled manually
+  const refreshToken = generateRefreshToken(newUser)
+
+  // store refresh token in redis
+  await redisClient.connect()
+  await redisClient.set(String(newUser.id), refreshToken)
+  await redisClient.disconnect()
+
+  // send tokens to client
+  res.json({ accessToken, refreshToken })
+})
+
 function generateAccessToken(user) {
   // generate temporary access token with user object and secret key
   return jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' })
+}
+
+function generateRefreshToken(user) {
+  // generate permanent refresh token with user object and secret key
+  return jwt.sign(user, process.env.REFRESH_TOKEN_SECRET)
 }
 
 app.listen(port, () => {
