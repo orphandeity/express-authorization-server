@@ -4,8 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon server.js",
-    "dev:auth": "nodemon authServer.js"
+    "dev": "concurrently \"npm run redis\" \"npm run dev:auth\" \"npm run dev:app\"",
+    "dev:app": "nodemon server.js",
+    "dev:auth": "nodemon authServer.js",
+    "redis": "redis-server"
   },
   "keywords": [],
   "author": "",
@@ -18,5 +20,8 @@
     "jsonwebtoken": "^9.0.2",
     "knex": "^3.1.0",
     "redis": "^4.6.12"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
   }
 }
