@@ -1,14 +1,14 @@
-# 🔐 Node.js Express Authentication Server 🪪
+# 🪪 Node.js Express Authentication Server
 
-Welcome to the Node.js Express Authentication Server, a robust and secure solution for handling user authentication in your web applications. This project is built on the powerful Express framework and incorporates industry-standard practices for session management using JSON Web Tokens (JWT). With dedicated routes and middleware, Redis for token management, and SQLite for user data storage, this authentication server provides a solid foundation for building secure and scalable web applications.
+Welcome to the Node.js Express Authentication Server, a robust and secure solution for handling user authentication in your web applications. This project is built on Express.js and incorporates industry-standard practices for session management using JSON Web Tokens (JWT). With dedicated routes and middleware, Redis for token management, and SQLite for user data storage, this authentication server provides a solid foundation for building secure and scalable web applications.
 
 ## Features
 
-- :sparkles: **Express Authentication App:** Dedicated Express application handling all authentication routes, ensuring separation of concerns for enhanced security and maintainability.
-- :sparkles: **JWT Session Management:** Utilizes JSON Web Tokens for secure and efficient session management, providing a seamless and stateless authentication experience.
-- :sparkles: **Redis for Token Management:** Leveraging Redis as a fast and reliable in-memory data store for token management, ensuring efficient and scalable handling of authentication tokens.
-- :sparkles: **SQLite for User Management:** Uses SQLite as the database for storing user information, offering a lightweight and easy-to-use solution for managing user data.
-- :sparkles: **Development Environment Setup:** In development environments, the Concurrently library is employed alongside Nodemon to effortlessly spin up all three servers simultaneously, facilitating a smooth and streamlined development workflow.
+- **Express Authentication App:** Dedicated Express application handling all authentication routes, ensuring separation of concerns for enhanced security and maintainability.
+- **JWT Session Management:** Utilizes JSON Web Tokens for secure and efficient session management, providing a seamless and stateless authentication experience.
+- **Redis for Token Management:** Leveraging Redis as a fast and reliable in-memory data store for token management, ensuring efficient and scalable handling of authentication tokens.
+- **SQLite for User Management:** Uses SQLite as the database for storing user information, offering a lightweight and easy-to-use solution for managing user data.
+- **Development Environment Setup:** In development environments, the Concurrently library is employed alongside Nodemon to effortlessly spin up all three servers simultaneously, facilitating a smooth and streamlined development workflow.
 
 ## Environment Variables
 
@@ -44,8 +44,6 @@ REDIS_PORT=6379
 ```
 
 Make sure to customize these values according to your specific setup and security requirements. Do not expose sensitive information, such as secret keys, in version control systems or public repositories.
-
-Feel free to reach out if you have any questions about configuring these environment variables or need assistance with any aspect of the setup.
 
 ## Getting Started
 
