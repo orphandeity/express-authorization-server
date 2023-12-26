@@ -1,5 +1,6 @@
 require('dotenv').config()
 const express = require('express')
+const cookieParser = require('cookie-parser')
 const jwt = require('jsonwebtoken')
 const redis = require('redis')
 
@@ -15,6 +16,7 @@ const {
 const port = process.env.AUTH_PORT || 4000
 const app = express()
 
+app.use(cookieParser())
 app.use(express.json())
 
 // redis client
@@ -74,7 +76,13 @@ app.post('/token', authenticateToken, async (req, res) => {
       if (err) return res.sendStatus(403) // forbidden
       // user object must be stripped of properties added by jwt.sign()
       const accessToken = generateAccessToken(stripUser(user))
-      return res.json({ accessToken })
+      // set cookie with new access token
+      res.cookie('accessToken', accessToken, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production'
+      })
+      res.sendStatus(200) // ok
     })
   } else {
     return res.sendStatus(403) // forbidden
@@ -110,8 +118,20 @@ app.post('/login', async (req, res) => {
   await redisClient.set(String(user.id), refreshToken)
   await redisClient.disconnect()
 
-  // send access token to client
-  res.json({ accessToken, refreshToken })
+  // set http only cookies with tokens
+  res.cookie('accessToken', accessToken, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production'
+  })
+
+  res.cookie('refreshToken', refreshToken, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production'
+  })
+
+  res.sendStatus(200) // ok
 })
 
 /**
@@ -143,8 +163,20 @@ app.post('/register', async (req, res) => {
   await redisClient.set(String(newUser.id), refreshToken)
   await redisClient.disconnect()
 
-  // send tokens to client
-  res.json({ accessToken, refreshToken })
+  // set http only cookies with tokens
+  res.cookie('accessToken', accessToken, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production'
+  })
+
+  res.cookie('refreshToken', refreshToken, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production'
+  })
+
+  res.sendStatus(201) // created
 })
 
 function generateAccessToken(user) {
